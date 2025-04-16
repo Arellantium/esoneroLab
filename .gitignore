@@ -1,0 +1,35 @@
+# Ambiente virtuale
+venv/
+*.venv/
+
+# Cache di Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# File di log
+*.log
+
+# File temporanei di sistema
+*.tmp
+*.swp
+*.swo
+
+# File di configurazione locale
+.env
+*.env
+
+# Cache di Visual Studio Code
+.vscode/
+
+# File di build/distribuzione
+build/
+dist/
+*.egg-info/
+
+# Database locale
+*.db
+
+# Altri file temporanei
+.DS_Store
+Thumbs.db
