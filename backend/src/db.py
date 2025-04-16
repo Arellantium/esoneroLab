@@ -27,10 +27,28 @@ def execute_sql(db, query: str):
 
 def get_schema_summary(connection):
     schema = []
-    tables = connection.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';")
+    database_name = "esonero"
+
+    # Recupera tutte le tabelle del database specificato
+    tables = connection.execute(
+        text(f"SELECT table_name FROM information_schema.tables WHERE table_schema = :database_name AND table_type = 'BASE TABLE';"),
+        {'database_name': database_name}
+    )
+
     for table in tables:
         table_name = table[0]
-        columns = connection.execute(f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}'")
-        for column in columns:
-            schema.append({"table_name": table_name, "column_name": column[0]})
+        
+        # Recupera tutte le colonne per ciascuna tabella
+        columns = connection.execute(
+            text(f"SELECT column_name FROM information_schema.columns WHERE table_schema = :database_name AND table_name = :table_name;"),
+            {'database_name': database_name, 'table_name': table_name}
+        )
+
+        # Crea una lista di colonne come stringa separata da virgole
+        column_names = [column[0] for column in columns]
+        columns_str = ', '.join(column_names)  # Unisce i nomi delle colonne con virgole
+        
+        # Aggiungi il nome della tabella e le colonne come stringa al risultato
+        schema.append(f"{table_name}: {columns_str}")
+    
     return schema
