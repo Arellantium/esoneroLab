@@ -28,27 +28,56 @@ def execute_sql(db, query: str):
 def get_schema_summary(connection):
     schema = []
     database_name = "esonero"
-
-    # Recupera tutte le tabelle del database specificato
+    
+    # Prendi tutte le tabelle del database
     tables = connection.execute(
-        text(f"SELECT table_name FROM information_schema.tables WHERE table_schema = :database_name AND table_type = 'BASE TABLE';"),
+        text("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = :database_name AND table_type = 'BASE TABLE';
+        """),
         {'database_name': database_name}
     )
 
     for table in tables:
         table_name = table[0]
-        
-        # Recupera tutte le colonne per ciascuna tabella
+
+        # Prendi tutte le colonne con dettagli
         columns = connection.execute(
-            text(f"SELECT column_name FROM information_schema.columns WHERE table_schema = :database_name AND table_name = :table_name;"),
+            text("""
+                SELECT 
+                    col.column_name,
+                    col.data_type,
+                    col.is_nullable,
+                    col.column_default,
+                    tc.constraint_type,
+                    kcu.referenced_table_name,
+                    kcu.referenced_column_name
+                FROM information_schema.columns col
+                LEFT JOIN information_schema.key_column_usage kcu
+                    ON col.table_name = kcu.table_name
+                    AND col.column_name = kcu.column_name
+                    AND col.table_schema = kcu.table_schema
+                LEFT JOIN information_schema.table_constraints tc
+                    ON kcu.constraint_name = tc.constraint_name
+                    AND kcu.table_name = tc.table_name
+                    AND kcu.table_schema = tc.table_schema
+                WHERE col.table_schema = :database_name AND col.table_name = :table_name;
+            """),
             {'database_name': database_name, 'table_name': table_name}
         )
 
-        # Crea una lista di colonne come stringa separata da virgole
-        column_names = [column[0] for column in columns]
-        columns_str = ', '.join(column_names)  # Unisce i nomi delle colonne con virgole
-        
-        # Aggiungi il nome della tabella e le colonne come stringa al risultato
-        schema.append(f"{table_name}: {columns_str}")
-    
+        for col in columns:
+            column_info = {
+                "table_name": table_name,
+                "column_name": col.column_name,
+                "data_type": col.data_type,
+                "is_nullable": col.is_nullable,
+                "default": col.column_default,
+                "is_primary": col.constraint_type == 'PRIMARY KEY',
+                "is_foreign": col.constraint_type == 'FOREIGN KEY',
+                "references": f"{col.referenced_table_name}.{col.referenced_column_name}" if col.constraint_type == 'FOREIGN KEY' else None
+            }
+            schema.append(column_info)
+
     return schema
