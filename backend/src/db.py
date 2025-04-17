@@ -21,8 +21,11 @@ def get_db() -> Generator:
     finally:
         db.close()
 
+
 def execute_sql(db, query: str):
+    print(query)
     result = db.execute(text(query))
+
     return result.fetchall()
 
 def get_schema_summary(connection):

@@ -1,6 +1,12 @@
 from typing import Tuple
-from schemas import FilmResult, RegistaResult, FilmConRegistaEtaResult, RegistaMultiFilmResult, SchemaColumn
+from schemas import FilmResult, RegistaResult, FilmConRegistaEtaResult, RegistaMultiFilmResult, SchemaColumn, FilmInput, CSVInput
+from models import Regista, Genere, Piattaforma, Film, FilmPiattaforma
 import re
+import pandas as pd
+from pydantic import ValidationError
+from fastapi import HTTPException
+import csv
+from io import StringIO
 
 ANNO_REGEX = r"^elenca i film del (\d{4})\.$"
 ANNI_REGEX = r"^quali film sono stati fatti da un regista di almeno (\d+) anni\?$"
@@ -39,7 +45,7 @@ def match_question_to_sql(question: str) -> Tuple[str, type]:
         SELECT Film.titolo, Film.anno
         FROM Film
         JOIN Genere ON Film.genere_id = Genere.id
-        WHERE Genere.nome ILIKE 'Fantascienza'
+        WHERE Genere.nome = 'Fantascienza'
         """
         return sql, FilmResult
 
@@ -92,3 +98,135 @@ def get_schema_summary(connection) -> list[SchemaColumn]:
     """)
     results = cursor.fetchall()
     return [SchemaColumn(table_name=table, column_name=column) for table, column in results]
+
+def importa_film_da_tsv(path, db):
+    df = pd.read_csv(path, sep="\t", header=None)
+    df.columns = ["Titolo", "Regista", "Età_Autore", "Anno", "Genere", "Piattaforma_1", "Piattaforma_2"]
+
+    for i, row in df.iterrows():
+        try:
+            piattaforme = []
+            if pd.notna(row["Piattaforma_1"]):
+                piattaforme.append(row["Piattaforma_1"])
+            if pd.notna(row["Piattaforma_2"]):
+                piattaforme.append(row["Piattaforma_2"])
+
+            film_data = FilmInput(
+                Titolo=row["Titolo"],
+                Regista=row["Regista"],
+                Età_Autore=int(row["Età_Autore"]),
+                Anno=int(row["Anno"]),
+                Genere=row["Genere"],
+                Piattaforme=piattaforme
+            )
+
+            # === Inserimento in ordine referenziale ===
+            # REGISTA
+            regista = db.query(Regista).filter_by(nome=film_data.Regista).first()
+            if not regista:
+                regista = Regista(nome=film_data.Regista, eta=film_data.Età_Autore)
+                db.add(regista)
+                db.flush()
+
+            # GENERE
+            genere = db.query(Genere).filter_by(nome=film_data.Genere).first()
+            if not genere:
+                genere = Genere(nome=film_data.Genere)
+                db.add(genere)
+                db.flush()
+
+            # PIATTAFORME
+            piattaforme_ids = []
+            for nome_piattaforma in film_data.Piattaforme:
+                piattaforma = db.query(Piattaforma).filter_by(nome=nome_piattaforma).first()
+                if not piattaforma:
+                    piattaforma = Piattaforma(nome=nome_piattaforma)
+                    db.add(piattaforma)
+                    db.flush()
+                piattaforme_ids.append(piattaforma.id)
+
+            # FILM
+            film_esistente = db.query(Film).filter_by(titolo=film_data.Titolo, anno=film_data.Anno).first()
+            if film_esistente:
+                print(f"Film già esistente: {film_data.Titolo} ({film_data.Anno})")
+                continue
+            
+            film = Film(
+                titolo=film_data.Titolo,
+                anno=film_data.Anno,
+                regista_id=regista.id,
+                genere_id=genere.id
+            )
+            db.add(film)
+            db.flush()
+
+            # FILM_PIATTAFORMA
+            for pid in piattaforme_ids:
+                db.add(FilmPiattaforma(film_id=film.id, piattaforma_id=pid))
+
+            print(f"[✓] {film.titolo} inserito.")
+        except ValidationError as ve:
+            print(f"[!] Errore validazione riga {i+1}: {ve}")
+        except Exception as e:
+            print(f"[!] Errore generale riga {i+1}: {e}")
+
+    db.commit()
+
+def importa_film_da_csv(data, db):
+    try:
+        reader = csv.DictReader(StringIO(data.contenuto), delimiter=",")
+
+        for row in reader:
+            # REGISTA
+            regista = db.query(Regista).filter_by(nome=row["Regista"]).first()
+            if not regista:
+                regista = Regista(nome=row["Regista"], eta=int(row["Età_Autore"]))
+                db.add(regista)
+                db.flush()
+
+            # GENERE
+            genere = db.query(Genere).filter_by(nome=row["Genere"]).first()
+            if not genere:
+                genere = Genere(nome=row["Genere"])
+                db.add(genere)
+                db.flush()
+
+            # FILM (controllo duplicati)
+            film_esistente = db.query(Film).filter_by(
+                titolo=row["Titolo"], anno=int(row["Anno"])
+            ).first()
+            if film_esistente:
+                continue
+
+            film = Film(
+                titolo=row["Titolo"],
+                anno=int(row["Anno"]),
+                regista_id=regista.id,
+                genere_id=genere.id
+            )
+            db.add(film)
+            db.flush()
+
+            # PIATTAFORME
+            for key in ["Piattaforma_1", "Piattaforma_2"]:
+                nome_piattaforma = row.get(key)
+                if nome_piattaforma:
+                    piattaforma = db.query(Piattaforma).filter_by(nome=nome_piattaforma).first()
+                    if not piattaforma:
+                        piattaforma = Piattaforma(nome=nome_piattaforma)
+                        db.add(piattaforma)
+                        db.flush()
+
+                    # Associazione film - piattaforma
+                    esiste_associazione = db.query(FilmPiattaforma).filter_by(
+                        film_id=film.id, piattaforma_id=piattaforma.id
+                    ).first()
+                    if not esiste_associazione:
+                        db.add(FilmPiattaforma(film_id=film.id, piattaforma_id=piattaforma.id))
+
+        db.commit()
+        return {"status": "ok"}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(e))

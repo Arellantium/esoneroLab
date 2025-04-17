@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, validator, ValidationError
+from typing import Optional, List
 
 # Schemi base, compatibili con SQLAlchemy
 class FilmSchema(BaseModel):
@@ -28,6 +28,14 @@ class GenereSchema(BaseModel):
 class PiattaformaSchema(BaseModel):
     id: int
     nome: str
+
+    class Config:
+        from_attributes = True
+
+class FilmPiattaformaSchema(BaseModel):
+    id: int
+    film_id: int
+    piattaforma_id: int
 
     class Config:
         from_attributes = True
@@ -64,3 +72,26 @@ class RegistaMultiFilmResult(BaseModel):
 class SchemaColumn(BaseModel):
     table_name: str
     column_name: str
+
+class FilmInput(BaseModel):
+    Titolo: str
+    Regista: str
+    Età_Autore: int
+    Anno: int 
+    Genere: str
+    Piattaforme: List[str]
+
+    @validator("Piattaforme")
+    def massimo_due(cls, v):
+        if len(v) > 2:
+            raise ValueError("Massimo due piattaforme per film")
+        return v
+    
+    class Config:
+        from_attributes = True
+
+class TSVInput(BaseModel):
+    contenuto: str
+
+class CSVInput(BaseModel):
+    contenuto: str
