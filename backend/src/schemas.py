@@ -42,17 +42,14 @@ class FilmPiattaformaSchema(BaseModel):
 
 # Risultati specifici per query
 class FilmResult(BaseModel):
-    titolo: str
-    anno: int
-
-    class Config:
-        from_attributes = True
+    id: int
+    name: str
+    anno: Optional[int]
 
 class RegistaResult(BaseModel):
-    nome: str
-
-    class Config:
-        from_attributes = True
+    id: int
+    name: str
+    anno: Optional[int]
 
 class FilmConRegistaEtaResult(BaseModel):
     titolo: str

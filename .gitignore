@@ -2,6 +2,9 @@
 venv/
 *.venv/
 
+venvTest/
+*.venvTest/
+
 # Cache di Python
 __pycache__/
 *.py[cod]

@@ -12,22 +12,49 @@ path = "C:\\Users\\aless\Documents\\appunti_univeristari\\EsoneroLab\\data.tsv"
 
 
 
-@app.get("/search")
+@app.get("/search/{question}")
 def search(question: str, db: Session = Depends(get_db)):
     try:
-        sql, schema = match_question_to_sql(question)
-        
+        sql, schema, item_type = match_question_to_sql(question)
         result = execute_sql(db, sql)
-        valori = list({row[0] for row in result})
 
-        return {"risultato": set(valori)}
+        response = []
+        for row in result:
+            item = schema(**row)  # row è già un dizionario
+
+            properties = []
+
+            for field_name, field_value in item.model_dump().items():
+                prop_name = "name" if field_name in ["titolo", "nome"] else field_name
+
+                # Converte a int se il campo è numerico
+                if isinstance(field_value, str) and field_name in ["id", "anno", "eta", "numero_film"]:
+                    try:
+                        field_value = int(field_value)
+                    except:
+                        pass
+
+                properties.append({
+                    "property_name": prop_name,
+                    "property_value": field_value
+                })
+
+            response.append({
+                "item_type": item_type,
+                "properties": properties
+            })
+
+        return response
+
     except Exception as e:
-        raise HTTPException(status_code=400, detail={
-            'errore': str(e),
-            'possibiili domande': domande
+        status_code = 422 if "Domanda non riconosciuta" in str(e) else 400
+        raise HTTPException(status_code=status_code, detail={
+            "errore": str(e),
+            "possibili_domande": domande
         })
-    
-    
+
+
+ 
 
 @app.get("/schema_summary")
 def schema_summary(db: Session = Depends(get_db)):
@@ -41,5 +68,11 @@ async def lettura( db: Session =Depends(get_db)):
    
 
 @app.post("/add")
-async def process_data(data: str = Body(..., media_type="text/plain"), db: Session = Depends(get_db)):
-    importa_film_da_csv(data, db)
+async def process_data(data, db: Session = Depends(get_db)):
+    try:
+        importa_film_da_csv(data, db)
+    except Exception as e:
+        status_code = 200 if "invalid form" in str(e) else 200
+        raise HTTPException(status_code=status_code, detail={
+            "errore": str(e)
+        })
