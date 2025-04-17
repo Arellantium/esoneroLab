@@ -90,5 +90,5 @@ class FilmInput(BaseModel):
 class TSVInput(BaseModel):
     contenuto: str
 
-class CSVInput(BaseModel):
-    contenuto: str
+class CSVInput(BaseModel):    
+    data_line: str

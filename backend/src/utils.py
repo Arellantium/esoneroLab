@@ -170,61 +170,81 @@ def importa_film_da_tsv(path, db):
 
 def importa_film_da_csv(data: CSVInput, db):
     try:
-        reader = csv.DictReader(StringIO(data.contenuto), delimiter=",")
+        
+        cols = data.data_line.split(",")
 
-        for row in reader:
-            row = {k: v.rstrip(',') if isinstance(v, str) else v for k, v in row.items()}
+        if len(cols) != 7 :
+                raise Exception(f"Il numero di colonne non corrisponde a 7 : {data.data_line}")
+        
+        print(cols, int(cols[2]))
+        
+        """
+            Titolo	Regista	Età_Autore	Anno	Genere	Piattaforma_1	Piattaforma_2
+            
+        """
+        _titolo = 0
+        _regista = 1	
+        _eta_autore = 2 
+        _anno = 3	
+        _genere = 4	
+        _piattaforma_1 = 5	
+        _piattaforma_2 = 6
 
-            # REGISTA
-            regista = db.query(Regista).filter_by(nome=row["Regista"]).first()
-            if not regista:
-                regista = Regista(nome=row["Regista"], eta=int(row["Età_Autore"]))
-                db.add(regista)
-                db.flush()
+        #row = {k: v.rstrip(',') if isinstance(v, str) else v for k, v in row}
 
-            # GENERE
-            genere = db.query(Genere).filter_by(nome=row["Genere"]).first()
-            if not genere:
-                genere = Genere(nome=row["Genere"])
-                db.add(genere)
-                db.flush()
-
-            # FILM (controllo duplicati)
-            film_esistente = db.query(Film).filter_by(
-                titolo=row["Titolo"], anno=int(row["Anno"])
-            ).first()
-            if film_esistente:
-                continue
-
-            film = Film(
-                titolo=row["Titolo"],
-                anno=int(row["Anno"]),
-                regista_id=regista.id,
-                genere_id=genere.id
-            )
-            db.add(film)
+        # REGISTA
+        regista = db.query(Regista).filter_by(nome=cols[_regista]).first()
+        if not regista:
+            print(cols[_eta_autore])
+            eta=int(cols[_eta_autore])
+            print (eta)
+            regista = Regista(nome=cols[_regista], eta=int(cols[_eta_autore]))
+            db.add(regista)
             db.flush()
 
-            # PIATTAFORME
-            for key in ["Piattaforma_1", "Piattaforma_2"]:
-                nome_piattaforma = row.get(key)
-                if nome_piattaforma:
-                    piattaforma = db.query(Piattaforma).filter_by(nome=nome_piattaforma).first()
-                    if not piattaforma:
-                        piattaforma = Piattaforma(nome=nome_piattaforma)
-                        db.add(piattaforma)
-                        db.flush()
+        # GENERE
+        genere = db.query(Genere).filter_by(nome=cols[_genere]).first()
+        if not genere:
+            genere = Genere(nome=cols[_genere])
+            db.add(genere)
+            db.flush()
 
-                    # Associazione film - piattaforma
-                    esiste_associazione = db.query(FilmPiattaforma).filter_by(
-                        film_id=film.id, piattaforma_id=piattaforma.id
-                    ).first()
-                    if not esiste_associazione:
-                        db.add(FilmPiattaforma(film_id=film.id, piattaforma_id=piattaforma.id))
+        # FILM (controllo duplicati)
+        film_esistente = db.query(Film).filter_by(
+            titolo=cols[_titolo], anno=int(cols[_anno])
+        ).first()
+        if film_esistente:
+            return
+        film = Film(
+            titolo=cols[_titolo],
+            anno=int(cols[_anno]),
+            regista_id=regista.id,
+            genere_id=genere.id
+        )
+        db.add(film)
+        db.flush()
+
+        # PIATTAFORME
+        for key in [_piattaforma_1, _piattaforma_2]:
+            nome_piattaforma = cols[key]
+            if nome_piattaforma:
+                piattaforma = db.query(Piattaforma).filter_by(nome=nome_piattaforma).first()
+                if not piattaforma:
+                    piattaforma = Piattaforma(nome=nome_piattaforma)
+                    db.add(piattaforma)
+                    db.flush()
+
+                # Associazione film - piattaforma
+                esiste_associazione = db.query(FilmPiattaforma).filter_by(
+                    film_id=film.id, piattaforma_id=piattaforma.id
+                ).first()
+                if not esiste_associazione:
+                    db.add(FilmPiattaforma(film_id=film.id, piattaforma_id=piattaforma.id))
 
         db.commit()
-        return {"status": "ok"}
+
 
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=200, detail=str(e))
+        print("lancio errore")
+        raise e
