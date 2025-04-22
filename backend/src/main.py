@@ -21,14 +21,14 @@ def search(question: str, db: Session = Depends(get_db)):
 
         response = []
         for row in result:
-            item = schema(**row)  # row è già un dizionario
+            item = schema(**row) 
 
             properties = []
 
             for field_name, field_value in item.model_dump().items():
                 prop_name = "name" if field_name in ["titolo", "nome"] else field_name
 
-                # Converte a int se il campo è numerico
+                
                 if isinstance(field_value, str) and field_name in ["id", "anno", "eta", "numero_film"]:
                     try:
                         field_value = int(field_value)
