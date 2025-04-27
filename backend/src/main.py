@@ -5,8 +5,17 @@ from db import get_db, execute_sql, get_schema_summary
 from typing import Dict
 from utils import match_question_to_sql, importa_film_da_tsv, importa_film_da_csv
 from schemas import CSVInput
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # ATTENZIONE: in produzione meglio specificare!
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 domande = ["Elenca i film del <ANNO>.", "Quali sono i registi presenti su Netflix?", "Elenca tutti i film di fantascienza.", "Quali film sono stati fatti da un regista di almeno <ANNI> anni?", "Quali registi hanno fatto più di un film?" ]
 path = "C:\\Users\\aless\Documents\\appunti_univeristari\\EsoneroLab\\data.tsv"
@@ -50,7 +59,7 @@ def search(question: str, db: Session = Depends(get_db)):
     except Exception as e:
         status_code = 422 if "Domanda non riconosciuta" in str(e) else 400
         raise HTTPException(status_code=status_code, detail={
-            "errore": str(e),
+            "errore": "Domanda non riconosciuta, possibili domande: ",
             "possibili_domande": domande
         })
 
