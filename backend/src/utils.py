@@ -194,6 +194,8 @@ def importa_film_da_csv(data: CSVInput, db):
 
         # REGISTA
         regista = db.query(Regista).filter_by(nome=cols[_regista]).first()
+        eta_nuova = int(cols[_eta_autore])
+
         if not regista:
             print(cols[_eta_autore])
             eta=int(cols[_eta_autore])
@@ -201,6 +203,10 @@ def importa_film_da_csv(data: CSVInput, db):
             regista = Regista(nome=cols[_regista], eta=int(cols[_eta_autore]))
             db.add(regista)
             db.flush()
+        else:
+            if regista.eta != eta_nuova:
+                regista.eta = eta_nuova
+                db.flush() 
 
         # GENERE
         genere = db.query(Genere).filter_by(nome=cols[_genere]).first()

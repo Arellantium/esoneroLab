@@ -3,24 +3,31 @@ version: "3.9"
 services:
   mariadb:
     image: mariadb:11.7.2-ubi9
-    container_name: mariadb-toystore
+    container_name: mariadb
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: toy_store
+      MYSQL_DATABASE: esonero
     ports:
       - "3307:3306"
     volumes:
       - ./mariadb_data:/var/lib/mysql:Z
       - ./mariadb_init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "h", "localhost", "-uroot", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   backend:
     build: ./backend
     container_name: backend-app
     ports:
-      - "8003:8000"
+      - "8003:8003"
     depends_on:
-      - mariadb
+      mariadb:
+        condition: service_healthy
     volumes:
       - ./backend:/app
     environment:
@@ -28,14 +35,15 @@ services:
       - DB_PORT=3306
       - DB_USER=root
       - DB_PASSWORD=rootpassword
-      - DB_NAME=toy_store
+      - DB_NAME=esonero
 
   frontend:
     build: ./frontend
     container_name: frontend-app
     ports:
-      - "8080:80"
+      - "8001:8001"
     volumes:
       - ./frontend:/usr/share/nginx/html:ro
     depends_on:
-      - backend
+      backend:
+        condition: service_started

@@ -212,9 +212,9 @@ const inviaFilm = async (e) => {
                 <tbody>
                   {ottieniSchema.map((campo, index) => (
                     <tr key={index}>
-                      <td>{campo.table_name}</td>
-                      <td>{campo.column_name}</td>
-                      <td>{campo.table_column}</td>
+                      <td className='text-start'>{campo.table_name}</td>
+                      <td className='text-start'>{campo.column_name}</td>
+                      <td className='text-start'>{campo.table_column}</td>
                     </tr>
                   ))}
                 </tbody>
