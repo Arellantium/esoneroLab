@@ -14,7 +14,7 @@ services:
       - ./mariadb_data:/var/lib/mysql:Z
       - ./mariadb_init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "h", "localhost", "-uroot", "-prootpassword"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -41,9 +41,7 @@ services:
     build: ./frontend
     container_name: frontend-app
     ports:
-      - "8001:8001"
-    volumes:
-      - ./frontend:/usr/share/nginx/html:ro
+      - "8001:80"
     depends_on:
       backend:
         condition: service_started

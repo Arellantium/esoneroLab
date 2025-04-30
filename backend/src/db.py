@@ -4,8 +4,8 @@ from typing import Generator
 
 DB_USER = "root"
 DB_PASSWORD = "rootpassword"
-DB_HOST = "localhost"
-#DB_HOST = "host.docker.internal"
+#DB_HOST = "localhost"
+DB_HOST = "host.docker.internal"
 DB_PORT = "3307"
 DB_NAME = "esonero"
 

@@ -1,13 +1,39 @@
 
 from fastapi import FastAPI, Depends, HTTPException, Body, status
 from sqlalchemy.orm import Session
+from contextlib import asynccontextmanager
 from db import get_db, execute_sql, get_schema_summary
 from typing import Dict
 from utils import match_question_to_sql, importa_film_da_tsv, importa_film_da_csv
 from schemas import CSVInput
 from fastapi.middleware.cors import CORSMiddleware
+from tenacity import retry, stop_after_attempt, wait_fixed
+import time
+from sqlalchemy import text
 
-app = FastAPI()
+@retry(stop=stop_after_attempt(10), wait=wait_fixed(2))
+def wait_for_db():
+    print("⏳ Aspetto che MariaDB sia pronto...")
+    db = next(get_db())
+    db.execute(text("SELECT 1"))
+    print("✅ MariaDB pronto.")
+
+
+path = "data.tsv"
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    wait_for_db()
+    try:
+        print("ciao")
+        db = next(get_db())  
+        importa_film_da_tsv(path, db)
+    except FileNotFoundError:
+        print(" File TSV non trovato.")
+    
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,7 +44,6 @@ app.add_middleware(
 )
 
 domande = ["Elenca i film del <ANNO>.", "Quali sono i registi presenti su Netflix?", "Elenca tutti i film di fantascienza.", "Quali film sono stati fatti da un regista di almeno <ANNI> anni?", "Quali registi hanno fatto più di un film?" ]
-path = "C:\\Users\\aless\Documents\\appunti_univeristari\\EsoneroLab\\data.tsv"
 
 
 

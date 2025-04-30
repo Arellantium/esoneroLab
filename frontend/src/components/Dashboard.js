@@ -24,7 +24,7 @@ function Dashboard() {
     setValidatedSearch(false);  
     
     try {
-      const response = await fetch(`http://127.0.0.1:8005/search/${encodeURIComponent(messaggio)}`);
+      const response = await fetch(`http://127.0.0.1:8003/search/${encodeURIComponent(messaggio)}`);
       if (response.ok) {
         const data = await response.json();
         console.log('Risposta dal server:', data);
@@ -76,7 +76,7 @@ const inviaFilm = async (e) => {
     setValidatedAdd(false);  
 
   try {
-    const response = await fetch('http://127.0.0.1:8005/add', {
+    const response = await fetch('http://127.0.0.1:8003/add', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -98,7 +98,7 @@ const inviaFilm = async (e) => {
 
   const inviaOttieniSchema = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:8005/schema_summary');
+      const response = await fetch('http://127.0.0.1:8003/schema_summary');
       const data = await response.json();
       console.log('Schema ricevuto:', data);
       setOttieniSchema(data);
