@@ -95,10 +95,10 @@ def get_schema_summary(connection) -> list[SchemaColumn]:
     results = cursor.fetchall()
     return [SchemaColumn(table_name=table, column_name=column) for table, column in results]
 
-def importa_film_da_tsv(TSV, db):
-    df = pd.read_csv(StringIO(TSV), sep="\t", header=None)
+def importa_film_da_tsv(path, db):
+    df = pd.read_csv(path, sep="\t", header=None)
     df.columns = ["Titolo", "Regista", "Età_Autore", "Anno", "Genere", "Piattaforma_1", "Piattaforma_2"]
-    
+
     for i, row in df.iterrows():
         try:
             piattaforme = []
